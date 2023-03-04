@@ -1,0 +1,199 @@
+----ex11
+----sa se afiseze numele si varsta clientilor a caror comanda a avut parte de reducere > 10% 
+----si a fost transportata de o masina mare
+
+
+select nume_client+' '+prenume_client as nume, varsta_client as varsta from
+COMANDA c
+inner join CLIENT on c.id_client = CLIENT.id_client
+inner join REDUCERE on c.cod_reducere=REDUCERE.cod_reducere and REDUCERE.reducere_val>10
+inner join MASINA on c.id_masina= MASINA.id_masina and MASINA.tip_masina='mare' 
+
+
+----sa se afiseze numele intreg al clientului, id-ul, nr de produse si pretul unei comenzi, plus 
+----un mesaj care sa ofere opinia asupra preturilor folosind CASE
+
+
+select id_comanda, nume_client+' '+prenume_client as nume, suma_finala as suma, nr_produse,
+case when suma_finala > 50 then 'comanda a fost scumpa'
+when (suma_finala < 50 and suma_finala > 20) then 'comanda n-a fost nici prea scumpa, nici prea ieftina'
+else 'comanda a fost ieftina'
+end as buget
+from (COMANDA inner join CLIENT on COMANDA.id_client=CLIENT.id_client)
+
+
+
+----sa se selecteze numele intreg, varsta si id-ul clientilor care au peste 18 ani si cheltuiesc in medie mai mult decat maj clientilor
+
+
+select concat(nume_client+' ' ,prenume_client) as nume, varsta_client as varsta, id_client as id_client from CLIENT
+where id_client in(select id_client from COMANDA
+					where suma_initiala>(select avg(suma_initiala) from COMANDA)) 
+		and id_client in(select id_client from CLIENT
+							where varsta_client>18)
+
+----sa se selecteze numele complet si id-ul clientilor care au dat comenzi si sunt nascuti in prima jumatate a anului
+
+
+select distinct nume_client+' '+prenume_client as nume, CLIENT.id_client as id_client from (CLIENT inner join COMANDA
+on CLIENT.id_client=COMANDA.id_client)
+where CLIENT.id_client in
+(select id_client  from CLIENT
+		where MONTH(data_nastere_client)<6)
+
+
+----sa se selecteze id-ul, numele intreg, functia si salariul total al primilor 15 angajati care au vechimea cea mai mare
+
+
+select tb.id_angajat,nume,functie, salariu_total from SALARII_2022 inner join 
+(select top 15 * from (select id_angajat, id_magazin, upper(nume_angajat+' '+prenume_angajat) as nume, functie, getdate() as data_curenta, data_angajare from ANGAJAT) tb1
+order by datediff( yy, data_angajare, getdate()) desc)tb
+on tb.id_angajat=SALARII_2022.id_angajat
+order by salariu_total desc
+
+
+
+----sa se afle nr de comenzi al fiecarui curier
+
+
+select count(id_curier) as nr_comenzi, nume_curier from (select ANGAJAT.nume_angajat+' '+ANGAJAT.prenume_angajat as nume_curier, id_curier from COMANDA
+left join ANGAJAT on COMANDA.id_curier = ANGAJAT.id_angajat)tb
+group by nume_curier 
+
+
+
+----sa se afiseze mangaurile care au genre cel mai popular
+
+
+select id_produs, nume_produs, genre_produs from PRODUS 
+where genre_produs in(
+select top 1 genre from (select count(genre_produs) as nr, genre_produs as genre from PRODUS
+group by  genre_produs)tb)
+
+
+
+----sa se afiseze id-ul si salariul angajatilor care au salariul mai mare decat maj
+
+
+
+
+WITH temporaryTable(averageValue) as
+    (SELECT avg(salariu_total)
+    from SALARII_2022)
+        SELECT id_angajat, salariu_total 
+        FROM SALARII_2022, temporaryTable 
+        WHERE SALARII_2022.salariu_total > temporaryTable.averageValue
+
+
+
+----ex12
+----UPDATE
+
+
+update PRODUS
+set pret_unit=23.99
+where id_produs=4500
+
+update PRODUS
+set descriere_produs='foarte bun'
+where id_produs=4504
+
+update PRODUS
+set nume_produs='HAIKYUU VOL.48'
+where id_produs=4507
+select * from PRODUS
+
+
+
+----ex13
+----secventa
+
+
+CREATE SEQUENCE pret_incr
+START WITH 11
+INCREMENT BY 1
+MINVALUE 10
+MAXVALUE 32
+CYCLE
+
+INSERT INTO PRODUS VALUES
+('sport','HAIKYUU VOL.23', next value for pret_incr,'euro','');
+INSERT INTO PRODUS VALUES
+('action','DEMON SLAYER VOL.44',next value for pret_incr,'euro','');
+INSERT INTO PRODUS VALUES
+('slice-of-life','BLUE PERIOD VOL.9',next value for pret_incr,'euro','');
+INSERT INTO PRODUS VALUES
+('sport','HAIKYUU VOL.67',next value for pret_incr,'euro','');
+SELECT * FROM PRODUS
+
+
+
+----ex14
+----view
+
+create view [angajati_dedicati]
+as
+select a.id_angajat,a.id_magazin, a.nume_angajat+' '+a.prenume_angajat as nume, ore as total_ore from ANGAJAT a
+inner join (select sum(ore_lucrate) as ore, id_angajat from SALARII_2022 
+			group by id_angajat) tb
+on a.id_angajat=tb.id_angajat
+where ore>340
+
+select * from angajati_dedicati
+
+
+----operatie LMD care nu merge
+select * from angajati_dedicati
+where angajati_dedicati.total_ore < 1
+
+----operatie LMD care merge
+
+select * from angajati_dedicati
+where angajati_dedicati.total_ore>= 1
+
+
+
+----ex15
+----index
+
+create index perioada_sale
+on SALE (data_inceput, data_sfarsit)
+
+
+select * from SALE
+where day(data_inceput)>=9
+
+
+
+----ex16
+----outer join
+
+
+
+select reducere_tip, cod_reducere from REDUCERE
+full outer join SALE
+on SALE.id_reducere=REDUCERE.cod_reducere
+order by REDUCERE.cod_reducere
+
+
+
+----division1
+
+(SELECT nume_client,prenume_client, varsta_client
+FROM CLIENT
+where varsta_client > 15)
+EXCEPT
+(SELECT nume_client, prenume_client, varsta_client
+FROM CLIENT
+where varsta_client > 20)
+
+
+----division2
+
+(SELECT nume, total_ore
+FROM angajati_dedicati
+where total_ore > 200)
+EXCEPT
+(SELECT nume, total_ore
+FROM angajati_dedicati
+where total_ore > 600)
